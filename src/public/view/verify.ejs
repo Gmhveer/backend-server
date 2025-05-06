@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Email Verification</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #e0f7fa, #e8f5e9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      max-width: 500px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    .icon {
+      font-size: 50px;
+      margin-bottom: 20px;
+      color: <%= status === 'success' ? '#4caf50' : '#f44336' %>;
+    }
+    .title {
+      font-size: 26px;
+      color: #333;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      font-size: 16px;
+      color: #666;
+      margin-bottom: 30px;
+    }
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      background-color: <%= status === 'success' ? '#4caf50' : '#f44336' %>;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .btn:hover {
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon"><%= status === 'success' ? '✅' : '❌' %></div>
+    <div class="title">
+      <%= status === 'success' ? 'Email Verified Successfully!' : 'Verification Failed' %>
+    </div>
+    <div class="subtitle">
+      <%= status === 'success' 
+        ? 'Your account has been successfully verified. You can now log in and start using the app.' 
+        : 'The verification link is invalid or has expired. Please try again or contact support.' %>
+    </div>
+    <a href="<%= status === 'success' ? '/login' : '/' %>" class="btn">
+      <%= status === 'success' ? 'Go to Login' : 'Back to Home' %>
+    </a>
+  </div>
+</body>
+</html>

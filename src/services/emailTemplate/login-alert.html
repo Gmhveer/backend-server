@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      margin: 0;
+      padding: 40px 0;
+    }
+    .container {
+      background: #ffffff;
+      max-width: 600px;
+      margin: auto;
+      padding: 30px 40px;
+      border-radius: 10px;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+      border-top: 6px solid #ff4d4f;
+    }
+    .header {
+      font-size: 24px;
+      font-weight: bold;
+      color: #ff4d4f;
+      display: flex;
+      align-items: center;
+    }
+    .header-icon {
+      margin-right: 10px;
+      font-size: 28px;
+    }
+    .content {
+      margin-top: 20px;
+      color: #333333;
+      line-height: 1.6;
+    }
+    .details {
+      background: #fafafa;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 15px;
+      border: 1px solid #eee;
+    }
+    .details strong {
+      color: #000;
+    }
+    .footer {
+      margin-top: 30px;
+      font-size: 12px;
+      color: #999;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <span class="header-icon">🔐</span>Login Alert
+    </div>
+    <div class="content">
+      Hello <strong>{{name}}</strong>,
+      <br /><br />
+      We detected a new login to your account:
+      <div class="details">
+        <strong>🕒 Time:</strong> {{time}}<br />
+        <strong>📍 Location:</strong> {{location}}<br />
+        <strong>🌐 IP Address:</strong> {{ip}}
+      </div>
+      <br />
+      If this was you, no action is needed.
+      <br />
+      If you don’t recognize this activity, we recommend you <a href="#" style="color:#ff4d4f; text-decoration:none;">reset your password</a> immediately.
+    </div>
+    <div class="footer">
+      This is an automated message. Please do not reply to this email.
+    </div>
+  </div>
+</body>
+</html>

@@ -1,20 +1,25 @@
 const product = require('../models/product');
 const userModel = require('../models/user');
 const { ResponseHandler, ResponseObject } = require('../helper/responeHandler');
-const { SALT_VALUE } = require('../helper/utlis');
+const { SALT_VALUE, JWT_SECRET_KEY } = require('../configs/utlis');
 const { isEmpty } = require('lodash');
 const bcrypt = require('bcrypt');
-const { sendMail } = require('../helper/emailService');
-const { REGISTRATION } = require('../helper/emailEnums');
+const jwt = require('jsonwebtoken');
+const { BASEURL } = require('../configs/utlis')
+const { sendMail } = require('../services/emailService');
+const { REGISTRATION, LOGIN_INFO } = require('../services/emailEnums');
 const register = async (req, res) => {
+    const response = { ...ResponseObject }; // clone responseObject
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
     try {
         const { name, email, password, phone, address, dateOfBirth, gender } = req.body;
 
         // Basic input validation (can be enhanced)
-        if (!name || !email || !password || !phone || !address || !address.street || !address.city || !address.state || !address.zip || !address.country) {
-            ResponseObject.code = 400;
-            ResponseObject.message = "Missing required fields";
-            return ResponseHandler("Missing fields", ResponseObject, res);
+        if (!name || !email || !password || !phone || !address || !address.city || !address.state || !address.zip || !address.country) {
+            response.code = 400;
+            response.message = "Missing required fields";
+            return ResponseHandler("Missing fields", response, res);
         }
 
         // Check for existing user
@@ -39,95 +44,126 @@ const register = async (req, res) => {
             password: hashedPassword,
             phone,
             address,
-            dateOfBirth,
+            dateOfBirth: new Date(),
             gender,
             role: 'user',
             isVerified: false,
-            verificationToken: crypto.randomBytes(20).toString('hex'),
+            verificationToken: Math.floor(Math.random() * 1000000) + 1,
         };
 
         const result = await userModel.create(newUser);
-        await sendMail(email, REGISTRATION.subject, {
-            name: name,
-            time: (new Date().toString()),
-            location: address.toString,
-            ip: '192.168.1.1'
-        })
-        ResponseObject.code = 200;
-        ResponseObject.message = "User created successfully";
-        ResponseObject.data = result;
-        return ResponseHandler(null, ResponseObject, res);
+        try {
+            await sendMail(email, REGISTRATION, {
+                name: result.name,
+                email: result.email,
+                time: (new Date().toString()),
+                location: `${result.address.city}, ${result.address.state}, ${result.address.country}`,
+                verificationLink: `${BASEURL}user/verify-email?token=${result.verificationToken}`,
+                ip: ip
+            })
+
+        } catch (error) {
+            console.log('error', error);
+
+        }
+        response.code = 200;
+        response.message = "User created successfully";
+        response.data = result;
+        return ResponseHandler(null, response, res);
 
     } catch (err) {
-        ResponseObject.code = 500;
-        ResponseObject.message = "Failed to create new user";
-        return ResponseHandler(err.message, ResponseObject, res);
+        response.code = 500;
+        response.message = "Failed to create new user";
+        return ResponseHandler(err.message, response, res);
     }
 };
 
 const login = async (req, res) => {
+    const response = { ...ResponseObject }; // clone responseObject
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
+
     if (isEmpty(req.body.email) || isEmpty(req.body.password)) {
-        ResponseObject.code = 401;
-        ResponseObject.message = "Invalid Inputs email || password";
-        return ResponseHandler(ResponseObject.message, ResponseObject, res);
+        response.code = 401;
+        response.message = "Invalid Inputs email || password";
+        return ResponseHandler(response.message, response, res);
     }
 
-    userModel.findOne({ email: req.body.email, password: req.body.password }).then(async result => {
+    userModel.findOne({ email: req.body.email }).then(async result => {
+
         if (isEmpty(result)) {
-            ResponseObject.code = 404;
-            ResponseObject.message = 'user not found';
-            return ResponseHandler(err, ResponseObject, res);
+            response.code = 404;
+            response.message = 'user not found';
+            return ResponseHandler(err, response, res);
         }
-        const isMatch = await bcrypt.compare(req.body.password, user.password);
+        const isMatch = await bcrypt.compare(req.body.password, result.password);
 
         if (!isMatch) {
-            ResponseObject.code = 401;
-            ResponseObject.message = "Invalid password";
-            return ResponseHandler("Invalid password", ResponseObject, res);
+            response.code = 401;
+            response.message = "Invalid password";
+            return ResponseHandler("Invalid password", response, res);
         }
-        ResponseObject.message = "User found successfully";
-        ResponseObject.data = result;
-        return ResponseHandler(null, ResponseObject, res);
+        try {
+            sendMail(result.email, LOGIN_INFO, {
+                name: result.name,
+                email: result.email,
+                time: (new Date().toString()),
+                location: `${result.address.city}, ${result.address.state}, ${result.address.country}`,
+                ip: ip
+            })
+        } catch (error) {
+            console.log('error', error);
+
+        }
+        const token = jwt.sign({ userId: result._id, role: result.role }, JWT_SECRET_KEY, { expiresIn: '1h' });
+        response.message = "User logged in successfully";
+        response.data = [{ userId: result._id, accessToken: token, role: result.role }];
+        return ResponseHandler(null, response, res);
 
     }).catch(err => {
-        ResponseObject.code = 404;
-        ResponseObject.message = 'user not found';
-        return ResponseHandler(err, ResponseObject, res);
+        response.code = 404;
+        response.message = 'User login failed';
+        return ResponseHandler(err, response, res);
     });
 
 }
 
 const verifyEmail = async (req, res) => {
+    // const response = { ...ResponseObject }; // clone responseObject
     const { token } = req.query; // or req.body, depending on your frontend
 
     if (!token) {
-        ResponseObject.code = 400;
-        ResponseObject.message = "Verification token is required";
-        return ResponseHandler("Missing token", ResponseObject, res);
+        return res.render('verify', { status: 'fail' });
+        // response.code = 400;
+        // response.message = "Verification token is required";
+        // return ResponseHandler("Missing token", response, res);
     }
 
     try {
         const user = await userModel.findOne({ verificationToken: token });
 
         if (!user) {
-            ResponseObject.code = 404;
-            ResponseObject.message = "Invalid or expired verification token";
-            return ResponseHandler("User not found", ResponseObject, res);
+            return res.render('verify', { status: 'fail' });
+            // response.code = 404;
+            // response.message = "Invalid or expired verification token";
+            // return ResponseHandler("User not found", response, res);
         }
 
         user.isVerified = true;
         user.verificationToken = undefined; // or null
         await user.save();
 
-        ResponseObject.code = 200;
-        ResponseObject.message = "Email verified successfully";
-        ResponseObject.data = { email: user.email, isVerified: isVerified ? true : false };
-        return ResponseHandler(null, ResponseObject, res);
+        return res.render('verify', { status: 'success' });
+        // response.code = 200;
+        // response.message = "Email verified successfully";
+        // response.data = { email: user.email, isVerified: isVerified ? true : false };
+        // return ResponseHandler(null, response, res);
 
     } catch (err) {
-        ResponseObject.code = 500;
-        ResponseObject.message = "Verification failed";
-        return ResponseHandler(err.message, ResponseObject, res);
+        res.render('verify', { status: 'fail' });
+        // response.code = 500;
+        // response.message = "Verification failed";
+        // return ResponseHandler(err.message, response, res);
     }
 };
 module.exports = { register, login, verifyEmail };
